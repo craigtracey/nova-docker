@@ -39,21 +39,22 @@ from novadocker.virt.docker import hostinfo
 from novadocker.virt.docker import network
 from novadocker.virt import hostutils
 
+CONF = cfg.CONF
+CONF.import_opt('my_ip', 'nova.netconf')
 
 docker_opts = [
-    cfg.IntOpt('registry_default_port',
+    cfg.StrOpt('registry_host', default=CONF.my_ip,
+               help=_('Default host on which to find the docker-registry')),
+    cfg.IntOpt('registry_port',
                default=5042,
-               help=_('Default TCP port to find the '
-                      'docker-registry container'),
+               help=_('Default TCP port to find the docker-registry'),
                deprecated_group='DEFAULT',
                deprecated_name='docker_registry_default_port'),
     cfg.StrOpt('vif_driver',
                default='novadocker.virt.docker.vifs.DockerGenericVIFDriver')
 ]
 
-CONF = cfg.CONF
 CONF.register_opts(docker_opts, 'docker')
-CONF.import_opt('my_ip', 'nova.netconf')
 
 LOG = log.getLogger(__name__)
 
@@ -235,7 +236,7 @@ class DockerDriver(driver.ComputeDriver):
             msg = _('Image container format not supported ({0})')
             raise exception.InstanceDeployFailure(msg.format(fmt),
                                                   instance_id=instance['name'])
-        return '{0}:{1}/{2}'.format(CONF.my_ip,
+        return '{0}:{1}/{2}'.format(CONF.docker.registry_host,
                                     self._registry_port,
                                     image['name'].lower())
 
@@ -404,7 +405,7 @@ class DockerDriver(driver.ComputeDriver):
         image = image_service.show(context, image_id)
         name = image['name'].lower()
         default_tag = (':' not in name)
-        name = '{0}:{1}/{2}'.format(CONF.my_ip,
+        name = '{0}:{1}/{2}'.format(CONF.docker.registry_host,
                                     self._registry_port,
                                     name)
         commit_name = name if not default_tag else name + ':latest'
